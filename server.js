@@ -7,8 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors({
-  origin: "https://linguistic-based-fake-news-detection.netlify.app",
-  credentials: true
+  origin: [
+    "https://linguistic-based-fake-news-detection.netlify.app"
+  ],
+  methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type"]
 }));
 
 app.use(express.json());

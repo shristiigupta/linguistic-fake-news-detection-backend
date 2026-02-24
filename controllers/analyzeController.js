@@ -1,36 +1,34 @@
-const { spawn } = require("child_process");
-const path = require("path");
+const axios = require("axios");
 
-exports.analyzeText = (req, res) => {
+// URL for the ML Flask service
+// In production, this would be the URL of your deployed Flask service on Render
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
+
+exports.analyzeText = async (req, res) => {
   const { text } = req.body;
 
   if (!text) {
     return res.status(400).json({ error: "Text missing" });
   }
 
-  const scriptPath = path.join(__dirname, "..", "ml_service", "predict.py");
+  try {
+    // Call the Flask ML service
+    const response = await axios.post(`${ML_SERVICE_URL}/predict`, {
+      text: text
+    });
 
-  const py = spawn("python", [scriptPath, text], {
-    cwd: path.join(__dirname, "..", "ml_service")
-  });
-
-  let result = "";
-
-  py.stdout.on("data", (data) => {
-    result += data.toString();
-  });
-
-  py.stderr.on("data", (data) => {
-    console.error("Python stderr:", data.toString());
-  });
-
-  py.on("close", () => {
-    try {
-      const json = JSON.parse(result);
-      res.json(json);
-    } catch (err) {
-      console.error("JSON parse error:", result);
-      res.status(500).json({ error: "Invalid ML response" });
+    res.json(response.data);
+  } catch (error) {
+    console.error("ML Service error:", error.message);
+    
+    if (error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ error: "ML service is unavailable. Please try again later." });
     }
-  });
+    
+    if (error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
+    
+    res.status(500).json({ error: "Failed to analyze text" });
+  }
 };

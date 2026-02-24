@@ -1,28 +1,38 @@
-exports.analyzeText = async (req, res) => {
-  try {
-    const { text } = req.body;
+const { spawn } = require("child_process");
+const path = require("path");
 
-    if (!text || text.trim().length === 0) {
-      return res.status(400).json({ error: "Text missing" });
+exports.analyzeText = (req, res) => {
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "Text missing" });
+
+  // Get the directory where the script is located
+  const scriptPath = path.join(__dirname, "..", "ml_service", "predict.py");
+  
+  // Pass text as command line argument and run from ml_service directory
+  const py = spawn("python", [scriptPath, text], {
+    cwd: path.join(__dirname, "..", "ml_service")
+  });
+
+  let result = "";
+  py.stdout.on("data", (data) => {
+    result += data.toString();
+  });
+
+  py.stderr.on("data", (data) => {
+    console.error("Python error:", data.toString());
+  });
+
+  py.on("close", (code) => {
+    if (code !== 0) {
+      console.error("Python process exited with code:", code);
+      return res.status(500).json({ error: "ML processing failed" });
     }
-
-    // 🔹 Mocked ML response (stable for deployment)
-    const response = {
-      credibility: text.length > 120 ? "Likely Real" : "Likely Fake",
-      risk: text.length > 120 ? "Low" : "High",
-      confidence: text.length > 120 ? 82 : 68,
-      insights: [
-        { feature: "Lexical complexity", value: 0.73 },
-        { feature: "Sentiment polarity", value: 0.41 },
-        { feature: "Clickbait probability", value: 0.62 }
-      ],
-      explanation:
-        "The prediction is based on linguistic patterns such as sentence structure, vocabulary richness, and emotional tone."
-    };
-
-    res.status(200).json(response);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Analysis failed" });
-  }
+    try {
+      const json = JSON.parse(result);
+      res.json(json);
+    } catch (e) {
+      console.error("Parsing error:", e, "Result was:", result);
+      res.status(500).json({ error: "ML processing failed" });
+    }
+  });
 };

@@ -2,7 +2,8 @@ const axios = require("axios");
 
 // URL for the ML Flask service
 // In production, this would be the URL of your deployed Flask service on Render
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
+//const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:5001";
+ML_SERVICE_URL= "https://fake-news-ml.onrender.com"
 
 exports.analyzeText = async (req, res) => {
   const { text } = req.body;
